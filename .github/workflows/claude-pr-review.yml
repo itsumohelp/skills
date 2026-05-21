@@ -1,0 +1,54 @@
+name: Claude Code PR Review
+
+on:
+  workflow_call:
+    inputs:
+      review_type:
+        description: 'プロンプトファイル名（.github/prompts/ 以下、拡張子なし）'
+        type: string
+        default: 'onion-arch-review'
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
+
+jobs:
+  claude-review:
+    # draft PRのみ実行（呼び出し側でも条件指定可能）
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout calling repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout skills repo (prompts)
+        uses: actions/checkout@v4
+        with:
+          repository: KaiKusakari/skills
+          ref: main
+          path: .claude-skills
+
+      - name: Load review prompt
+        id: prompt
+        run: |
+          PROMPT_PATH=".claude-skills/.github/prompts/${{ inputs.review_type }}.md"
+          if [ ! -f "$PROMPT_PATH" ]; then
+            echo "Error: Prompt file not found: $PROMPT_PATH" >&2
+            exit 1
+          fi
+          {
+            echo "content<<__PROMPT_EOF__"
+            cat "$PROMPT_PATH"
+            echo "__PROMPT_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@beta
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          direct_prompt: ${{ steps.prompt.outputs.content }}
