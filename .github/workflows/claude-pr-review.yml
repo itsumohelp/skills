@@ -28,7 +28,7 @@ jobs:
       - name: Checkout skills repo (prompts)
         uses: actions/checkout@v4
         with:
-          repository: KaiKusakari/skills
+          repository: itsumohelp/skills
           ref: main
           path: .claude-skills
 
